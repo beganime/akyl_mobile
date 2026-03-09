@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@morrowdigital/watermelondb-expo-plugin": "^2.3.3",
     "@nozbe/watermelondb": "^0.28.0",
     "@shopify/flash-list": "^2.3.0",
     "axios": "^1.13.6",
@@ -28,8 +29,9 @@
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
-  "devDependencies": {
+"devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.29.0",
+    "@react-native-community/cli": "latest",
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
   },
