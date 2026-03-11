@@ -1,6 +1,6 @@
 // app/(auth)/login.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,6 @@ import { apiClient } from '../../src/api/client';
 import { database } from '../../src/database';
 import { User } from '../../src/database/models/User';
 
-// FastAPI OAuth2 использует username вместо email по умолчанию
 const loginSchema = z.object({
   username: z.string().min(1, 'Введите имя пользователя'),
   password: z.string().min(1, 'Введите пароль'),
@@ -30,35 +29,24 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      // 1. Формируем x-www-form-urlencoded для OAuth2
       const formData = new URLSearchParams();
       formData.append('username', data.username);
       formData.append('password', data.password);
 
-      // 2. Отправляем запрос на получение токена
+      // Запрос строго по доке: application/x-www-form-urlencoded
       const tokenResponse = await apiClient.post('/auth/login/access-token', formData.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
 
       const { access_token } = tokenResponse.data;
-      
-      // Сохраняем токен в стор (пока без refresh, поэтому передаем пустую строку вторым параметром)
       await setTokens(access_token, '');
 
-      // 3. Запрашиваем профиль текущего пользователя
       const meResponse = await apiClient.get('/users/me');
       const meData = meResponse.data;
 
-      // 4. Сохраняем профиль локально в WatermelonDB
       await database.write(async () => {
         const usersCollection = database.get<User>('users');
-        
-        // Очищаем старых юзеров на всякий случай (чтобы в локальной БД был только один текущий профиль-владелец)
         await usersCollection.query().destroyAllPermanently();
-
-        // Создаем запись. Важно: мы принудительно ставим _raw.id равным ID с бэкенда.
         await usersCollection.create((user) => {
           user._raw.id = meData.id; 
           user.username = meData.username;
@@ -67,41 +55,47 @@ export default function LoginScreen() {
         });
       });
 
-      // Перекидываем пользователя в таб с чатами
       router.replace('/(tabs)/chats');
-
     } catch (error: any) {
-      console.error('Ошибка входа:', error);
       const errorMsg = error.response?.data?.detail || 'Проверьте соединение с интернетом';
-      Alert.alert('Ошибка авторизации', errorMsg);
+      Alert.alert('Ошибка', errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Акыл Чешме</Text>
-        <Text style={styles.subtitle}>Войдите в свой аккаунт</Text>
+        
+        <View style={styles.logoContainer}>
+          <View style={styles.logoCircle}>
+             {/* Загружаем логотип из assets */}
+            <Image 
+              source={require('../../assets/logo.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+
+        <Text style={styles.title}>Вход в Акыл Чешме</Text>
+        <Text style={styles.subtitle}>Пожалуйста, введите ваш логин и пароль.</Text>
 
         <Controller
           control={control}
           name="username"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
               <TextInput
                 style={[styles.input, errors.username && styles.inputError]}
-                placeholder="Имя пользователя"
+                placeholder="Логин"
+                placeholderTextColor="#64748B"
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
                 autoCapitalize="none"
               />
-              {errors.username && <Text style={styles.errorText}>{errors.username.message}</Text>}
             </View>
           )}
         />
@@ -110,16 +104,16 @@ export default function LoginScreen() {
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
               <TextInput
                 style={[styles.input, errors.password && styles.inputError]}
                 placeholder="Пароль"
+                placeholderTextColor="#64748B"
                 onBlur={onBlur}
                 onChangeText={onChange}
                 value={value}
                 secureTextEntry
               />
-              {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
             </View>
           )}
         />
@@ -128,17 +122,14 @@ export default function LoginScreen() {
           style={[styles.button, isLoading && styles.buttonDisabled]} 
           onPress={handleSubmit(onSubmit)}
           disabled={isLoading}
+          activeOpacity={0.8}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Войти</Text>
-          )}
+          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Продолжить</Text>}
         </TouchableOpacity>
 
         <Link href="/(auth)/register" asChild>
           <TouchableOpacity style={styles.linkButton} disabled={isLoading}>
-            <Text style={styles.linkText}>Нет аккаунта? Создать</Text>
+            <Text style={styles.linkText}>Нет аккаунта? Зарегистрируйтесь</Text>
           </TouchableOpacity>
         </Link>
       </View>
@@ -147,17 +138,34 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#007AFF', textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40, marginTop: 8 },
-  inputContainer: { marginBottom: 16 },
-  input: { borderWidth: 1, borderColor: '#E5E5EA', backgroundColor: '#F2F2F7', padding: 16, borderRadius: 12, fontSize: 16, color: '#000' },
-  inputError: { borderColor: '#FF3B30' },
-  errorText: { color: '#FF3B30', fontSize: 12, marginTop: 6, marginLeft: 4 },
-  button: { backgroundColor: '#007AFF', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
+  container: { flex: 1, backgroundColor: '#0B1426' }, // Темно-синий фон
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
+  logoContainer: { alignItems: 'center', marginBottom: 30 },
+  logoCircle: { 
+    width: 120, 
+    height: 120, 
+    borderRadius: 60, 
+    backgroundColor: '#13203B', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#F97316' // Оранжевая обводка
+  },
+  logoImage: { width: 80, height: 80 },
+  title: { fontSize: 26, fontWeight: '600', color: '#FFFFFF', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#8E9EAB', textAlign: 'center', marginBottom: 40 },
+  inputWrapper: { marginBottom: 20 },
+  input: { 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#2C3E50', 
+    paddingVertical: 12, 
+    fontSize: 18, 
+    color: '#FFFFFF' 
+  },
+  inputError: { borderBottomColor: '#EF4444' },
+  button: { backgroundColor: '#F97316', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  buttonText: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
   linkButton: { marginTop: 24, alignItems: 'center', padding: 10 },
-  linkText: { color: '#007AFF', fontSize: 16, fontWeight: '500' },
+  linkText: { color: '#F97316', fontSize: 16, fontWeight: '500' },
 });

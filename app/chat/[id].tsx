@@ -1,22 +1,19 @@
 // app/chat/[id].tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import withObservables from '@nozbe/with-observables';
 import { Q } from '@nozbe/watermelondb';
+import { Ionicons } from '@expo/vector-icons';
 import { database } from '../../src/database';
 import { Message } from '../../src/database/models/Message';
 import { wsService } from '../../src/services/websocket';
 
 const generateLocalId = () => Math.random().toString(36).substring(2, 15);
 
-// Индивидуальный "пузырь" сообщения
 const MessageBubble = ({ message }: { message: Message }) => {
-  // Временно определяем свои/чужие по наличию флага isRead (как заглушка, 
-  // в реальности нужно сравнивать message.user.id с ID профиля из стора)
-  const isMine = message.isRead; // Допустим, мы ставили isRead=true при ACK отправки
-  
+  const isMine = message.isRead; 
   const time = new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -24,7 +21,14 @@ const MessageBubble = ({ message }: { message: Message }) => {
       <Text style={[styles.messageText, isMine ? styles.myText : styles.theirText]}>{message.text}</Text>
       <View style={styles.metaData}>
         <Text style={[styles.timeText, isMine ? styles.myTime : styles.theirTime]}>{time}</Text>
-        {isMine && !message.isRead && <Text style={styles.pendingIcon}> 🕒</Text>}
+        {isMine && (
+          <Ionicons 
+            name={message.isRead ? "checkmark-outline" : "time-outline"} 
+            size={14} 
+            color="rgba(255,255,255,0.7)" 
+            style={styles.pendingIcon} 
+          />
+        )}
       </View>
     </View>
   );
@@ -37,141 +41,145 @@ const ChatRoom = ({ messages }: { messages: Message[] }) => {
 
   const sendMessage = async () => {
     if (!inputText.trim()) return;
-
     const textToSend = inputText.trim();
     const localId = generateLocalId();
-    setInputText(''); // Мгновенно очищаем поле ввода
+    setInputText('');
 
-    // 1. Оптимистичный UI: Сначала пишем в локальную БД
     await database.write(async () => {
       const messagesCollection = database.get<Message>('messages');
       await messagesCollection.create((msg) => {
-        msg._raw.id = localId; // Временный ID
+        msg._raw.id = localId;
         msg._raw.chat_id = chatId;
         msg.text = textToSend;
         msg.createdAt = Date.now();
-        msg.isRead = false; // Статус "ожидание отправки" (часики)
+        msg.isRead = false;
       });
       
-      // Обновляем время последнего сообщения в чате
       const chatCollection = database.get('chats');
       try {
         const chat = await chatCollection.find(chatId);
-        await chat.update((c: any) => {
-          c.lastMessageAt = Date.now();
-        });
+        await chat.update((c: any) => { c.lastMessageAt = Date.now(); });
       } catch(e) {}
     });
 
-    // 2. Отправляем по WebSocket на бэкенд
     wsService.sendMessage(chatId, textToSend, localId);
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Назад</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Чат</Text>
-        <View style={{ width: 50 }} />
-      </View>
+    <View style={styles.wrapper}>
+      <SafeAreaView style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#F97316" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Диалог</Text>
+            <Text style={styles.headerStatus}>в сети</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+      </SafeAreaView>
 
-      <FlashList
-        data={messages}
-        renderItem={({ item }) => <MessageBubble message={item} />}
-        keyExtractor={(item) => item.id}
-        estimatedItemSize={60}
-        inverted // Сообщения идут снизу вверх (как в Телеграм)
-        contentContainerStyle={{ padding: 16 }}
-      />
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.chatBackground}>
+          <FlashList
+            data={messages}
+            renderItem={({ item }) => <MessageBubble message={item} />}
+            keyExtractor={(item) => item.id}
+            estimatedItemSize={60}
+            inverted
+            contentContainerStyle={{ padding: 12 }}
+          />
+        </View>
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Сообщение..."
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-        />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Text style={styles.sendButtonText}>Отпр</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <SafeAreaView style={styles.inputSafeArea}>
+          <View style={styles.inputContainer}>
+            <TouchableOpacity style={styles.attachButton}>
+              <Ionicons name="attach" size={28} color="#8E9EAB" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Сообщение..."
+              placeholderTextColor="#8E9EAB"
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+            />
+            {inputText.trim() ? (
+              <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+                <Ionicons name="send" size={24} color="#F97316" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.sendButton}>
+                <Ionicons name="mic-outline" size={28} color="#8E9EAB" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
-// Реактивно подписываемся на сообщения конкретного чата, сортируем по убыванию даты
 const enhance = withObservables(['id'], ({ id }: { id: string }) => ({
   messages: database.get<Message>('messages')
-    .query(
-      Q.where('chat_id', id),
-      Q.sortBy('created_at', Q.desc)
-    )
+    .query(Q.where('chat_id', id), Q.sortBy('created_at', Q.desc))
     .observe(),
 }));
 
 export default enhance(ChatRoom);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E4EDF5' }, // Фон в стиле Telegram
+  wrapper: { flex: 1, backgroundColor: '#13203B' }, 
+  headerSafeArea: { backgroundColor: '#13203B', paddingTop: Platform.OS === 'android' ? 30 : 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     paddingVertical: 12,
-    backgroundColor: '#FAFAFC',
+    backgroundColor: '#13203B',
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D1D6',
-    ...Platform.select({ ios: { paddingTop: 50 } }) // Учет челки на iOS (лучше использовать SafeArea)
+    borderBottomColor: '#1E293B',
   },
-  backButton: { width: 60 },
-  backText: { color: '#007AFF', fontSize: 17 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#000' },
-  bubbleContainer: { maxWidth: '80%', padding: 10, borderRadius: 18, marginBottom: 8 },
-  myBubble: { alignSelf: 'flex-end', backgroundColor: '#007AFF', borderBottomRightRadius: 4 },
-  theirBubble: { alignSelf: 'flex-start', backgroundColor: '#FFFFFF', borderBottomLeftRadius: 4 },
-  messageText: { fontSize: 16 },
-  myText: { color: '#FFF' },
-  theirText: { color: '#000' },
-  metaData: { flexDirection: 'row', alignSelf: 'flex-end', marginTop: 4 },
+  backButton: { padding: 5, width: 40 },
+  headerTitleContainer: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#ffffff' },
+  headerStatus: { fontSize: 13, color: '#8E9EAB', marginTop: 2 },
+  container: { flex: 1, backgroundColor: '#0B1426' },
+  chatBackground: { flex: 1, backgroundColor: '#0B1426' }, 
+  bubbleContainer: { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, marginBottom: 8 },
+  myBubble: { alignSelf: 'flex-end', backgroundColor: '#F97316', borderBottomRightRadius: 4 }, // Оранжевый
+  theirBubble: { alignSelf: 'flex-start', backgroundColor: '#1D2D44', borderBottomLeftRadius: 4 }, // Светло-темно синий
+  messageText: { fontSize: 16, lineHeight: 22 },
+  myText: { color: '#FFFFFF' },
+  theirText: { color: '#FFFFFF' },
+  metaData: { flexDirection: 'row', alignSelf: 'flex-end', alignItems: 'center', marginTop: 4, marginLeft: 10 },
   timeText: { fontSize: 11 },
   myTime: { color: 'rgba(255,255,255,0.7)' },
-  theirTime: { color: '#8E8E93' },
-  pendingIcon: { fontSize: 10 },
+  theirTime: { color: '#8E9EAB' },
+  pendingIcon: { marginLeft: 4, marginTop: 1 },
+  inputSafeArea: { backgroundColor: '#13203B' },
   inputContainer: {
     flexDirection: 'row',
-    padding: 10,
-    backgroundColor: '#FAFAFC',
-    borderTopWidth: 1,
-    borderTopColor: '#D1D1D6',
+    padding: 8,
+    backgroundColor: '#13203B',
     alignItems: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
   },
+  attachButton: { padding: 8, marginBottom: 2 },
   input: {
     flex: 1,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
+    backgroundColor: '#1E293B',
+    color: '#FFFFFF',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
     fontSize: 16,
-    maxHeight: 100,
-  },
-  sendButton: {
-    marginLeft: 12,
-    marginBottom: 4,
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
+    maxHeight: 120,
+    paddingTop: 12,
+    paddingBottom: 12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    marginBottom: 4,
   },
-  sendButtonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+  sendButton: { padding: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
 });
