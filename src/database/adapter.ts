@@ -4,7 +4,7 @@ import { schema } from './schema';
 
 export const adapter = new SQLiteAdapter({
   schema,
-  jsi: true, 
+  jsi: false,
   onSetUpError: error => {
     console.error('WatermelonDB (Mobile) setup error:', error);
   }

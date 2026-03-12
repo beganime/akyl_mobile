@@ -12,17 +12,19 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.studentslife.akylchesme"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/logo.png",
-        "backgroundImage": "./assets/logo.png",
-        "monochromeImage": "./assets/logo.png"
+        "backgroundColor": "#0B1426"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.beganime.akylchesmeapp"
+      "package": "com.studentslife.akylchesme",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,7 +33,9 @@
       "expo-router",
       [
         "@morrowdigital/watermelondb-expo-plugin",
-        {}
+        {
+          "disableJsi": true
+        }
       ]
     ],
     "extra": {
