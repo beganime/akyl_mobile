@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "akyl-chesme-app",
+    "name": "Akyl chesmesi",
     "slug": "akyl-chesme-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0B1426"
     },
     "ios": {
       "supportsTablet": true,
@@ -22,6 +22,8 @@
       },
       "package": "com.studentslife.akylchesme",
       "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
@@ -43,6 +45,12 @@
       "eas": {
         "projectId": "fa98edb0-db87-4b2e-9fbb-4abfe1a3fd91"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fa98edb0-db87-4b2e-9fbb-4abfe1a3fd91"
     }
   }
 }
