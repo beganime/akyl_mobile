@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../src/store/authStore';
-import { determineServer } from '../src/api/client';
+import { initApiClient } from '../src/api/client';
 
 export default function RootLayout() {
   const { isLogged, isInitialized, initAuth } = useAuthStore();
@@ -15,7 +15,7 @@ export default function RootLayout() {
   // 1. Инициализация (Выбор сервера + Проверка токенов)
   useEffect(() => {
     const bootstrap = async () => {
-      await determineServer();
+      await initApiClient();
       setIsServerReady(true);
       await initAuth();
     };
