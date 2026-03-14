@@ -27,6 +27,7 @@ const MessageBubble = ({ message, isMine }: { message: Message; isMine: boolean 
             name={message.isRead ? 'checkmark-done' : 'time-outline'}
             size={14}
             color="rgba(255,255,255,0.8)"
+
             style={styles.pendingIcon}
           />
         )}
@@ -141,6 +142,7 @@ export default enhance(ChatRoom);
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: '#020617' },
   headerSafeArea: { backgroundColor: '#0b1220', paddingTop: Platform.OS === 'android' ? 30 : 0 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,6 +165,7 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 15, lineHeight: 21 },
   myText: { color: '#fff' },
   theirText: { color: '#f1f5f9' },
+
   metaData: { flexDirection: 'row', alignSelf: 'flex-end', alignItems: 'center', marginTop: 4, marginLeft: 10 },
   timeText: { fontSize: 11 },
   myTime: { color: 'rgba(255,255,255,0.75)' },

@@ -3,6 +3,7 @@ import { Message } from '../database/models/Message';
 import { useAuthStore } from '../store/authStore';
 import { getActiveApiBaseUrl } from '../api/client';
 
+
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
@@ -19,6 +20,7 @@ class WebSocketService {
     if (!accessToken) return;
 
     const wsBaseUrl = getActiveApiBaseUrl().replace(/^http/, 'ws');
+
     const wsUrl = `${wsBaseUrl}/ws/chat?token=${accessToken}`;
 
     this.ws = new WebSocket(wsUrl);

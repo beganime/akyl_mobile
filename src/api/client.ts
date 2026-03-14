@@ -20,6 +20,7 @@ export const getActiveApiBaseUrl = () => activeApiBaseUrl;
 
 export const apiClient = axios.create({
   baseURL: DEFAULT_API_BASE_URL,
+
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,6 +42,7 @@ export const determineServer = async () => {
   activeApiBaseUrl = DEFAULT_API_BASE_URL;
   apiClient.defaults.baseURL = DEFAULT_API_BASE_URL;
   return DEFAULT_API_BASE_URL;
+
 };
 
 export const initApiClient = async () => determineServer();
