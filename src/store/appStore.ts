@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 
 // Инициализируем MMKV для синхронного и невероятно быстрого хранилища
-export const storage = new MMKV();
+export const storage = createMMKV();
 
 interface AppState {
   theme: 'light' | 'dark';

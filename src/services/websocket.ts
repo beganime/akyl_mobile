@@ -1,15 +1,14 @@
-// src/services/websocket.ts
 import { database } from '../database';
 import { Message } from '../database/models/Message';
 import { useAuthStore } from '../store/authStore';
-import { apiClient } from '../api/client'; // Добавлен импорт клиента
+import { getActiveApiBaseUrl } from '../api/client';
 
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  private baseDelay = 1000;
-  private pingInterval: NodeJS.Timeout | null = null;
+  private readonly maxReconnectAttempts = 10;
+  private readonly baseDelay = 1000;
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
 
   public connect() {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
@@ -19,17 +18,12 @@ class WebSocketService {
     const { accessToken } = useAuthStore.getState();
     if (!accessToken) return;
 
-    // Берем актуальный baseURL, который мы вычислили при старте приложения
-    const httpUrl = apiClient.defaults.baseURL as string || 'https://akyl-cheshmesi.ru/api/v1';
-    
-    // Заменяем http/https на ws/wss
-    const wsBaseUrl = httpUrl.replace(/^http/, 'ws');
+    const wsBaseUrl = getActiveApiBaseUrl().replace(/^http/, 'ws');
     const wsUrl = `${wsBaseUrl}/ws/chat?token=${accessToken}`;
 
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('✅ WebSocket подключен');
       this.reconnectAttempts = 0;
       this.startPing();
     };
@@ -43,15 +37,14 @@ class WebSocketService {
       }
     };
 
-    this.ws.onclose = (event) => {
-      console.log('❌ WebSocket отключен:', event.code, event.reason);
+    this.ws.onclose = () => {
       this.stopPing();
       this.ws = null;
       this.handleReconnect();
     };
 
     this.ws.onerror = (error) => {
-      console.error('⚠️ Ошибка WebSocket:', error);
+      console.error('Ошибка WebSocket:', error);
     };
   }
 
@@ -65,16 +58,15 @@ class WebSocketService {
 
   public sendMessage(chatId: string, text: string, localId: string, attachment: any = null) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const payload = {
-        action: 'send_message',
-        chat_id: chatId,
-        text: text,
-        local_id: localId,
-        attachment: attachment,
-      };
-      this.ws.send(JSON.stringify(payload));
-    } else {
-      console.warn('Попытка отправки при закрытом сокете.');
+      this.ws.send(
+        JSON.stringify({
+          action: 'send_message',
+          chat_id: chatId,
+          text,
+          local_id: localId,
+          attachment,
+        })
+      );
     }
   }
 
@@ -105,33 +97,37 @@ class WebSocketService {
 
   private async handleIncomingMessage(data: any) {
     switch (data.action) {
-      case 'new_message':
+      case 'new_message': {
         await database.write(async () => {
           const messagesCollection = database.get<Message>('messages');
           await messagesCollection.create((msg) => {
             msg._raw.id = data.message_id;
-            msg._raw.chat_id = data.chat_id;
-            msg._raw.user_id = data.sender_id;
+            (msg._raw as any).chat_id = data.chat_id;
+            (msg._raw as any).user_id = data.sender_id;
             msg.text = data.text;
             msg.createdAt = new Date(data.created_at).getTime();
-            msg.isRead = false;
+            msg.isRead = true;
           });
         });
         break;
-
-      case 'message_ack':
+      }
+      case 'message_ack': {
         await database.write(async () => {
           const messagesCollection = database.get<Message>('messages');
           try {
             const localMsg = await messagesCollection.find(data.local_id);
             await localMsg.update((msg) => {
-              msg.isRead = true; 
+              msg.isRead = true;
+              if (data.created_at) {
+                msg.createdAt = new Date(data.created_at).getTime();
+              }
             });
-          } catch (e) {
-            // Сообщение уже синхронизировано или не найдено
+          } catch {
+            // not found
           }
         });
         break;
+      }
       default:
         break;
     }
