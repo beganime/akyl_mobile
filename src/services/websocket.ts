@@ -1,7 +1,8 @@
 import { database } from '../database';
 import { Message } from '../database/models/Message';
 import { useAuthStore } from '../store/authStore';
-import { API_BASE_URL } from '../api/client';
+import { getActiveApiBaseUrl } from '../api/client';
+
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -18,7 +19,8 @@ class WebSocketService {
     const { accessToken } = useAuthStore.getState();
     if (!accessToken) return;
 
-    const wsBaseUrl = API_BASE_URL.replace(/^http/, 'ws');
+    const wsBaseUrl = getActiveApiBaseUrl().replace(/^http/, 'ws');
+
     const wsUrl = `${wsBaseUrl}/ws/chat?token=${accessToken}`;
 
     this.ws = new WebSocket(wsUrl);
