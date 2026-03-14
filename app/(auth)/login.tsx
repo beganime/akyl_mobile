@@ -8,7 +8,7 @@ import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '../../src/store/authStore';
-import { apiClient } from '../../src/api/client';
+import { authApi } from '../../src/api/endpoints';
 import { database } from '../../src/database';
 import { User } from '../../src/database/models/User';
 
@@ -21,7 +21,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setTokens } = useAuthStore();
+  const { setTokens, setUserId } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); // Состояние для "глазка"
   
@@ -34,19 +34,18 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', data.username);
-      formData.append('password', data.password);
-
-      const tokenResponse = await apiClient.post('/auth/login/access-token', formData.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      const tokenResponse = await authApi.login({
+        username: data.username,
+        password: data.password,
       });
 
       const { access_token } = tokenResponse.data;
-      await setTokens(access_token, '');
+      await setTokens(access_token);
 
-      const meResponse = await apiClient.get('/users/me');
+      const meResponse = await authApi.me();
       const meData = meResponse.data;
+
+      await setUserId(meData.id);
 
       await database.write(async () => {
         const usersCollection = database.get<User>('users');

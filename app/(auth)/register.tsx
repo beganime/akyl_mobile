@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { apiClient } from '../../src/api/client';
+import { authApi } from '../../src/api/endpoints';
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Минимум 3 символа').regex(/^[a-zA-Z0-9_]+$/, 'Только лат. буквы, цифры и _'),
@@ -35,7 +35,7 @@ export default function RegisterScreen() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
     try {
-      await apiClient.post('/users/register', {
+      await authApi.register({
         username: data.username,
         password: data.password,
         name: data.name,

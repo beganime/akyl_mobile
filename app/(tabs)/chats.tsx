@@ -65,7 +65,6 @@ const ChatsScreen = ({ chats }: { chats: Chat[] }) => {
         data={chats}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={76}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>У вас пока нет диалогов</Text>
